@@ -30,12 +30,12 @@ export async function POST(req: Request) {
     // Import prisma dynamically only when needed
     const { prisma } = await import("@/lib/db");
 
-    // Handle the checkout.session.completed event
-    if (event.type === "checkout.session.completed") {
-      // Retrieve the subscription from Stripe
+  // Handle the checkout.session.completed event
+  if (event.type === "checkout.session.completed") {
+    // Retrieve the subscription from Stripe
       const subscriptionResponse = await stripe.subscriptions.retrieve(
-        session.subscription as string
-      );
+      session.subscription as string
+    );
       
       // Cast to access the needed properties
       const subscription = subscriptionResponse as unknown as {
@@ -45,26 +45,26 @@ export async function POST(req: Request) {
         current_period_end: number;
       };
 
-      // Update the user with the subscription data
-      await prisma.subscription.create({
-        data: {
-          userId: session.client_reference_id || session.customer as string,
-          stripeSubscriptionId: subscription.id,
-          stripeCustomerId: subscription.customer as string,
-          stripePriceId: subscription.items.data[0].price.id,
-          stripeCurrentPeriodEnd: new Date(
-            subscription.current_period_end * 1000
-          ),
-        },
-      });
-    }
+    // Update the user with the subscription data
+    await prisma.subscription.create({
+      data: {
+        userId: session.client_reference_id || session.customer as string,
+        stripeSubscriptionId: subscription.id,
+        stripeCustomerId: subscription.customer as string,
+        stripePriceId: subscription.items.data[0].price.id,
+        stripeCurrentPeriodEnd: new Date(
+          subscription.current_period_end * 1000
+        ),
+      },
+    });
+  }
 
-    // Handle the invoice.payment_succeeded event for subscription renewals
-    if (event.type === "invoice.payment_succeeded") {
-      // Retrieve the subscription from Stripe
+  // Handle the invoice.payment_succeeded event for subscription renewals
+  if (event.type === "invoice.payment_succeeded") {
+    // Retrieve the subscription from Stripe
       const subscriptionResponse = await stripe.subscriptions.retrieve(
-        session.subscription as string
-      );
+      session.subscription as string
+    );
       
       // Cast to access the needed properties
       const subscription = subscriptionResponse as unknown as {
@@ -73,18 +73,18 @@ export async function POST(req: Request) {
         current_period_end: number;
       };
 
-      // Update the subscription with new period end date
-      await prisma.subscription.update({
-        where: {
-          stripeSubscriptionId: subscription.id,
-        },
-        data: {
-          stripePriceId: subscription.items.data[0].price.id,
-          stripeCurrentPeriodEnd: new Date(
-            subscription.current_period_end * 1000
-          ),
-        },
-      });
+    // Update the subscription with new period end date
+    await prisma.subscription.update({
+      where: {
+        stripeSubscriptionId: subscription.id,
+      },
+      data: {
+        stripePriceId: subscription.items.data[0].price.id,
+        stripeCurrentPeriodEnd: new Date(
+          subscription.current_period_end * 1000
+        ),
+      },
+    });
     }
     
   } catch (error) {

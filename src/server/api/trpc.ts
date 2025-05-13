@@ -4,12 +4,13 @@ import { ZodError } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { Session } from "next-auth";
+import { PrismaClient } from "@prisma/client";
 // Import prisma at runtime, not build time
 // import { prisma } from "@/lib/db";
 
 type CreateContextOptions = {
   session: Session | null;
-  prisma?: any; // We'll add prisma at runtime
+  prisma?: PrismaClient;
 };
 
 const createInnerTRPCContext = (opts: CreateContextOptions) => {

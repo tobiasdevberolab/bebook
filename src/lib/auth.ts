@@ -139,25 +139,25 @@ export const authOptions: NextAuthOptions = {
       try {
         const { prisma } = await import("./db");
         
-        const dbUser = await prisma.user.findFirst({
-          where: {
-            email: token.email,
-          },
-        });
+      const dbUser = await prisma.user.findFirst({
+        where: {
+          email: token.email,
+        },
+      });
 
-        if (!dbUser) {
-          if (user) {
-            token.id = user.id;
-          }
-          return token;
+      if (!dbUser) {
+        if (user) {
+          token.id = user.id;
         }
+        return token;
+      }
 
-        return {
-          id: dbUser.id,
-          name: dbUser.name,
-          email: dbUser.email,
-          picture: dbUser.image,
-        };
+      return {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        picture: dbUser.image,
+      };
       } catch (error) {
         console.error("JWT callback error:", error);
         // Return the token as is if there's an error
