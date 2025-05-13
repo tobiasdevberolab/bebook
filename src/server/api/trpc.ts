@@ -3,24 +3,30 @@ import superjson from "superjson";
 import { ZodError } from "zod";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { Session } from "next-auth";
+// Import prisma at runtime, not build time
+// import { prisma } from "@/lib/db";
 
 type CreateContextOptions = {
-  session: Awaited<ReturnType<typeof getServerSession>>;
+  session: Session | null;
+  prisma?: any; // We'll add prisma at runtime
 };
 
 const createInnerTRPCContext = (opts: CreateContextOptions) => {
   return {
     session: opts.session,
-    prisma,
+    prisma: opts.prisma,
   };
 };
 
 export const createTRPCContext = async () => {
+  // Get prisma dynamically at runtime
+  const { prisma } = await import("@/lib/db");
   const session = await getServerSession(authOptions);
 
   return createInnerTRPCContext({
     session,
+    prisma,
   });
 };
 

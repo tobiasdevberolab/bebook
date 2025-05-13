@@ -1,7 +1,9 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { NextAuthOptions } from "next-auth";
+import { NextAuthOptions, User, Session, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { prisma } from "./db";
+import { Adapter, AdapterUser } from "next-auth/adapters";
+// Import prisma in runtime, not build time
+// import { prisma } from "./db";
 
 // Extend the built-in types
 declare module "next-auth" {
@@ -24,8 +26,84 @@ declare module "next-auth/jwt" {
   }
 }
 
+// We'll create and initialize the auth options dynamically
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: {
+    // This will be initialized during runtime, not build
+    async createUser(user: Omit<AdapterUser, "id">): Promise<AdapterUser> {
+      const { prisma } = await import("./db");
+      return await prisma.user.create({ data: user }) as AdapterUser;
+    },
+    async getUser(id: string): Promise<AdapterUser | null> {
+      const { prisma } = await import("./db");
+      return await prisma.user.findUnique({ where: { id } }) as AdapterUser | null;
+    },
+    async getUserByEmail(email: string): Promise<AdapterUser | null> {
+      const { prisma } = await import("./db");
+      return await prisma.user.findUnique({ where: { email } }) as AdapterUser | null;
+    },
+    async getUserByAccount({ providerAccountId, provider }: { providerAccountId: string, provider: string }): Promise<AdapterUser | null> {
+      const { prisma } = await import("./db");
+      const account = await prisma.account.findUnique({
+        where: { 
+          provider_providerAccountId: {
+            provider,
+            providerAccountId
+          }
+        },
+        include: { user: true },
+      });
+      return (account?.user as AdapterUser) ?? null;
+    },
+    async updateUser(user: Partial<AdapterUser> & { id: string }): Promise<AdapterUser> {
+      const { prisma } = await import("./db");
+      return await prisma.user.update({ where: { id: user.id }, data: user }) as AdapterUser;
+    },
+    async deleteUser(userId: string): Promise<AdapterUser | null> {
+      const { prisma } = await import("./db");
+      return await prisma.user.delete({ where: { id: userId } }) as AdapterUser;
+    },
+    async linkAccount(account: Account): Promise<Account | null> {
+      const { prisma } = await import("./db");
+      return await prisma.account.create({ data: account }) as Account;
+    },
+    async unlinkAccount({ providerAccountId, provider }: { providerAccountId: string, provider: string }) {
+      const { prisma } = await import("./db");
+      return await prisma.account.delete({
+        where: {
+          provider_providerAccountId: {
+            provider,
+            providerAccountId
+          }
+        }
+      });
+    },
+    async createSession(session: { sessionToken: string, userId: string, expires: Date }): Promise<any> {
+      const { prisma } = await import("./db");
+      return await prisma.session.create({ data: session });
+    },
+    async getSessionAndUser(sessionToken: string): Promise<{ session: any, user: AdapterUser } | null> {
+      const { prisma } = await import("./db");
+      const userAndSession = await prisma.session.findUnique({
+        where: { sessionToken },
+        include: { user: true },
+      });
+      if (!userAndSession) return null;
+      const { user, ...session } = userAndSession;
+      return { user: user as AdapterUser, session };
+    },
+    async updateSession(session: Partial<{ sessionToken: string }> & { sessionToken: string }): Promise<any | null> {
+      const { prisma } = await import("./db");
+      return await prisma.session.update({
+        where: { sessionToken: session.sessionToken },
+        data: session,
+      });
+    },
+    async deleteSession(sessionToken: string) {
+      const { prisma } = await import("./db");
+      return await prisma.session.delete({ where: { sessionToken } });
+    },
+  } as Adapter,
   session: {
     strategy: "jwt",
   },
@@ -52,6 +130,8 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user }) {
+      const { prisma } = await import("./db");
+      
       const dbUser = await prisma.user.findFirst({
         where: {
           email: token.email,

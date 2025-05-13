@@ -73,7 +73,7 @@ export const stripeRouter = router({
       }
 
       const subscription = user.subscriptions.find(
-        (sub) => sub.stripeSubscriptionId === subscriptionId
+        (sub: { stripeSubscriptionId: string }) => sub.stripeSubscriptionId === subscriptionId
       );
 
       if (!subscription) {
