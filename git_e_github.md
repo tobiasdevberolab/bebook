@@ -90,6 +90,17 @@ ssh-add ~/.ssh/id_ed25519
 cat ~/.ssh/id_ed25519.pub
 ```
 
+#### Sobre o algoritmo Ed25519
+
+No comando acima, o parâmetro `-t ed25519` especifica o tipo de algoritmo criptográfico usado para gerar o par de chaves. Ed25519 é um algoritmo de criptografia de curva elíptica de última geração que oferece diversas vantagens:
+
+- **Segurança superior**: Proporciona um nível de segurança equivalente a RSA 3072-bit, porém com chaves muito menores
+- **Desempenho**: É significativamente mais rápido que algoritmos RSA e DSA tradicionais
+- **Resistência**: Projetado para ser resistente a certas vulnerabilidades criptográficas
+- **Tamanho compacto**: Gera chaves públicas de apenas 68 caracteres
+
+O Ed25519 é a opção recomendada para novas chaves SSH, a menos que você precise de compatibilidade com sistemas mais antigos (nesse caso, RSA com pelo menos 2048 bits seria a alternativa).
+
 ## O Arquivo .gitignore: Mantendo a Casa Limpa
 
 **O .gitignore é como um filtro que decide o que não entra no seu repositório.**
