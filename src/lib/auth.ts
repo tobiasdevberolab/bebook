@@ -1,5 +1,4 @@
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { NextAuthOptions, User, Session, Account } from "next-auth";
+import { NextAuthOptions, Account } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { Adapter, AdapterUser } from "next-auth/adapters";
 // Import prisma in runtime, not build time
@@ -24,6 +23,13 @@ declare module "next-auth/jwt" {
     email?: string | null;
     picture?: string | null;
   }
+}
+
+// Define session types for better type safety
+interface SessionData {
+  sessionToken: string;
+  userId: string;
+  expires: Date;
 }
 
 // We'll create and initialize the auth options dynamically
@@ -78,11 +84,11 @@ export const authOptions: NextAuthOptions = {
         }
       });
     },
-    async createSession(session: { sessionToken: string, userId: string, expires: Date }): Promise<any> {
+    async createSession(session: SessionData): Promise<SessionData> {
       const { prisma } = await import("./db");
-      return await prisma.session.create({ data: session });
+      return await prisma.session.create({ data: session }) as SessionData;
     },
-    async getSessionAndUser(sessionToken: string): Promise<{ session: any, user: AdapterUser } | null> {
+    async getSessionAndUser(sessionToken: string): Promise<{ session: SessionData, user: AdapterUser } | null> {
       const { prisma } = await import("./db");
       const userAndSession = await prisma.session.findUnique({
         where: { sessionToken },
@@ -90,14 +96,14 @@ export const authOptions: NextAuthOptions = {
       });
       if (!userAndSession) return null;
       const { user, ...session } = userAndSession;
-      return { user: user as AdapterUser, session };
+      return { user: user as AdapterUser, session: session as SessionData };
     },
-    async updateSession(session: Partial<{ sessionToken: string }> & { sessionToken: string }): Promise<any | null> {
+    async updateSession(session: Partial<{ sessionToken: string }> & { sessionToken: string }): Promise<SessionData | null> {
       const { prisma } = await import("./db");
       return await prisma.session.update({
         where: { sessionToken: session.sessionToken },
         data: session,
-      });
+      }) as SessionData | null;
     },
     async deleteSession(sessionToken: string) {
       const { prisma } = await import("./db");
@@ -130,27 +136,33 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user }) {
-      const { prisma } = await import("./db");
-      
-      const dbUser = await prisma.user.findFirst({
-        where: {
-          email: token.email,
-        },
-      });
+      try {
+        const { prisma } = await import("./db");
+        
+        const dbUser = await prisma.user.findFirst({
+          where: {
+            email: token.email,
+          },
+        });
 
-      if (!dbUser) {
-        if (user) {
-          token.id = user.id;
+        if (!dbUser) {
+          if (user) {
+            token.id = user.id;
+          }
+          return token;
         }
+
+        return {
+          id: dbUser.id,
+          name: dbUser.name,
+          email: dbUser.email,
+          picture: dbUser.image,
+        };
+      } catch (error) {
+        console.error("JWT callback error:", error);
+        // Return the token as is if there's an error
         return token;
       }
-
-      return {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        picture: dbUser.image,
-      };
     },
   },
 }; 
